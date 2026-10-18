@@ -61,3 +61,30 @@ test("repeated manager task stops the loop and invokes finalize", async () => {
   assert.equal(workers, 1);
   assert.equal(result.stopReason, "repeated task");
 });
+
+test("failed public sample overrides an incorrect manager done verdict", async () => {
+  const root = await mkdtemp(join(tmpdir(), "gvs5h-test-"));
+  let managerCalls = 0;
+  const result = await solve({
+    problem: "Print the integer 9.",
+    tests: [{ input: "", output: "9" }],
+    workspaceRoot: root,
+    maxIters: 1,
+    chat: async ({ role, user }) => {
+      if (role === "primary_plan") return { text: "### PLAN\nPrint 9.\n### TASKS\n- Implement" };
+      if (role === "ideation") return { text: "### NOTES\nPrint a constant.\n### NEXT\n- Implement" };
+      if (role === "primary_manage") {
+        managerCalls++;
+        if (managerCalls === 1) return { text: "### STATUS\ncontinue\n### NEXT\nImplement\n### TASKS\n- [todo] Implement" };
+        assert.match(user, /SAMPLE TESTS: FAILED/);
+        return { text: "### STATUS\ndone\n### NEXT\n\n### TASKS\n- [done] Implement" };
+      }
+      if (role === "worker" || role === "finalize") return { text: "### CODE\n```python\nprint(8)\n```\n### NOTES\n- Attempt.\n### NEXT\nnone\n### STATUS\nsolved" };
+      throw new Error(role);
+    },
+  });
+  assert.equal(result.status, "continue");
+  assert.equal(result.stopReason, "iteration cap");
+  assert.equal(result.samples.passed, 0);
+  assert.equal(result.complete, false);
+});
