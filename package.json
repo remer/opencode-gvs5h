@@ -1,0 +1,12 @@
+{
+  "name": "opencode-gvs5h",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test"
+  },
+  "peerDependencies": {
+    "@opencode-ai/plugin": ">=1.17.18"
+  }
+}
